@@ -148,17 +148,30 @@ let simulator (numNodes: int) (numRequests: int) (mailbox: Actor<_>) =
                 snd x <! AddInFingerTable(fst x)
                 Threading.Thread.Sleep(150)
             mailbox.Self <! Lookups 
+        //lookups with taking average of keys
+        // | Lookups -> 
+        //     let mutable key = 0
+        //     for i in 0..numNodes - 1 do
+        //         key <- key + (fst (Array.get peers i))
+        //     key <- key / peers.Length
+        //     key <- key |> int
+        //     for i in 0..numNodes - 1 do
+        //         for j in 1..(numRequests) do
+        //             (snd (Array.get peers i)) <!  Lookup (fst(Array.get peers (numNodes - 1)) - 1, 0, (snd (Array.get peers i)))
+        //             flag <- true
+        //             Threading.Thread.Sleep(400)
+
+        //lookups with random keys
         | Lookups ->
-            let mutable key = 0
-            for i in 0..numNodes - 1 do
-                key <- key + (fst (Array.get peers i))
-            key <- key / peers.Length
-            key <- key |> int
+            let rand = Random()
             for i in 0..numNodes - 1 do
                 for j in 1..(numRequests) do
-                    (snd (Array.get peers i)) <!  Lookup (fst(Array.get peers (numNodes - 1)) - 1, 0, (snd (Array.get peers i)))
+                    // Generate a random key within the range of peer IDs
+                    let randomKey = rand.Next(fst (Array.get peers 0), fst (Array.get peers (numNodes - 1)))
+                    (snd (Array.get peers i)) <!  Lookup (randomKey, 0, (snd (Array.get peers i)))
                     flag <- true
                     Threading.Thread.Sleep(400)
+
         | FoundKey (ref, key, hopCount, requestor) ->
             sum <- sum + hopCount
             average <- (sum |> float) / (numNodes  * (numRequests) |> float)  
