@@ -26,6 +26,7 @@ type SimulatorMessage =
 // Global variables
 let systemRef = ActorSystem.Create("System")
 let mutable m = 0
+let mutable results = 0
 let mutable peers: (int * IActorRef)[] = [||]
 let mutable flag = true
 let mutable sum = 0
@@ -113,10 +114,10 @@ let peer (id: int) (mailbox:Actor<_>) =
 let simulator (numNodes: int) (numRequests: int) (mailbox: Actor<_>) =
     // let numRequests = 3
 
-    let rec loop state = actor {
-        let! message = mailbox.Receive()
-        let mutable maxid=0
-        let r = Random()
+    let rec loop (state: unit) = actor {
+        let! (message: SimulatorMessage) = mailbox.Receive()
+        let mutable maxid: int=0
+        let r: Random = Random()
 
         match message with
         | CreateChord ->
@@ -161,7 +162,7 @@ let simulator (numNodes: int) (numRequests: int) (mailbox: Actor<_>) =
         //             flag <- true
         //             Threading.Thread.Sleep(400)
 
-        //lookups with random keys
+        // lookups with random keys
         | Lookups ->
             let rand = Random()
             for i in 0..numNodes - 1 do
@@ -173,9 +174,16 @@ let simulator (numNodes: int) (numRequests: int) (mailbox: Actor<_>) =
                     Threading.Thread.Sleep(400)
 
         | FoundKey (ref, key, hopCount, requestor) ->
+            
             sum <- sum + hopCount
             average <- (sum |> float) / (numNodes  * (numRequests) |> float)  
-            printfn "Input %A:Set key%A on node %A with number of hops = %A , Average:%A" requestor key ref hopCount average
+            // printfn "Input %A:Set key%A on node %A with number of hops = %A , Average:%A" requestor key ref hopCount average
+            // printfn "Results: %A" results
+            if (results = (numNodes * numRequests)-1) then
+                printfn "Average number of hops: %A" average
+                systemRef.Terminate()
+            results <- results + 1
+
         | _ ->  failwith "[ERR] Unknown message."
 
         return! loop()
@@ -194,7 +202,6 @@ let main argv =
     let simulatorRef = spawn systemRef "simulator" (simulator numNodes numRequests) 
  
     simulatorRef <! CreateChord
-    Thread.Sleep(18000)
-
+    Thread.Sleep(30000)
     systemRef.WhenTerminated.Wait()
     0 
